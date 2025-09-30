@@ -98,22 +98,22 @@ tasks.register('commitOnSuccess') {
             }
         }
 
-        // Ensure branch is 'main' instead of deprecated 'master'
+        // Ensure branch is 'master' to align with origin default
         def branchProc = new ProcessBuilder('git', 'rev-parse', '--abbrev-ref', 'HEAD').directory(rootDir).redirectErrorStream(true).start()
         def branchName = new String(branchProc.inputStream.readAllBytes()).trim()
         branchProc.waitFor()
-        if (branchName == 'master') {
-            println '[auto-commit] Renaming branch master -> main'
-            def renameProc = new ProcessBuilder('git', 'branch', '-m', 'master', 'main').directory(rootDir).inheritIO().start()
+        if (branchName == 'main') {
+            println '[auto-commit] Renaming branch main -> master'
+            def renameProc = new ProcessBuilder('git', 'branch', '-m', 'main', 'master').directory(rootDir).inheritIO().start()
             renameProc.waitFor()
             // Update branchName variable after rename
-            branchName = 'main'
+            branchName = 'master'
         }
         if (branchName == 'HEAD' || branchName.isEmpty()) {
-            // Detached; try to switch/create main if available
-            def checkoutMain = new ProcessBuilder('git', 'checkout', '-B', 'main').directory(rootDir).inheritIO().start()
-            checkoutMain.waitFor()
-            branchName = 'main'
+            // Detached; try to switch/create master if available
+            def checkoutMaster = new ProcessBuilder('git', 'checkout', '-B', 'master').directory(rootDir).inheritIO().start()
+            checkoutMaster.waitFor()
+            branchName = 'master'
         }
 
         // Optionally push to origin
@@ -138,9 +138,9 @@ tasks.register('commitOnSuccess') {
                 pushProc.waitFor()
                 if (pushProc.exitValue() == 0) {
                     println "[auto-commit] Pushed branch '${branchName}' to origin."
-                    // Try to set remote HEAD to main when applicable
-                    if (branchName == 'main') {
-                        new ProcessBuilder('git', 'remote', 'set-head', 'origin', 'main').directory(rootDir).inheritIO().start().waitFor()
+                    // Try to set remote HEAD to master when applicable
+                    if (branchName == 'master') {
+                        new ProcessBuilder('git', 'remote', 'set-head', 'origin', 'master').directory(rootDir).inheritIO().start().waitFor()
                     }
                 } else {
                     println "[auto-commit] git push failed with code ${pushProc.exitValue()}"
