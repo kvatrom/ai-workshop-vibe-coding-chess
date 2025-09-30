@@ -8,6 +8,11 @@ import java.util.Scanner;
  * position) renders a board highlighting origin and destination squares.
  */
 public class Main {
+    private static String coord(int file, int rank) {
+        char f = (char)('a' + file);
+        char r = (char)('1' + rank);
+        return "" + f + r;
+    }
     public static void main(String[] args) {
         // If a move is provided as an arg, accept exactly one move from the initial position
         if (args != null && args.length > 0) {
@@ -48,6 +53,20 @@ public class Main {
                 board = res.after;
                 System.out.println(ChessBoardRenderer.render(board, res.fromFile, res.fromRank, res.toFile, res.toRank));
                 whiteToMove = !whiteToMove;
+                // If it's now Black to move, let Black play using MCTS under simplified rules
+                if (!whiteToMove) {
+                    java.util.Optional<MonteCarloPlayer.MoveChoice> choice = MonteCarloPlayer.chooseMove(board, false, 300);
+                    if (choice.isPresent()) {
+                        MonteCarloPlayer.MoveChoice mc = choice.get();
+                        ChessBoard.SimpleMove mv = mc.move;
+                        board = mc.resultingState;
+                        System.out.println("Black (MCTS) plays: " + coord(mv.fromFile, mv.fromRank) + "-" + coord(mv.toFile, mv.toRank));
+                        System.out.println(ChessBoardRenderer.render(board, mv.fromFile, mv.fromRank, mv.toFile, mv.toRank));
+                    } else {
+                        System.out.println("Black (MCTS) has no legal simplified moves. Waiting for White's next input.");
+                    }
+                    whiteToMove = true; // return turn to White
+                }
             } else {
                 System.out.println("(No move made: unsupported or illegal under simplified rules. Try a pawn push like e4/e5 or a knight move like Nf3/Nf6.)");
             }

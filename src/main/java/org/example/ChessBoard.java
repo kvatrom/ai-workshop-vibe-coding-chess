@@ -14,6 +14,14 @@ public class ChessBoard {
     // Board is [rank][file] with 0-based indexing: rank 0 = 1st rank, file 0 = 'a'.
     private final char[][] board = new char[8][8];
 
+    // Simple move model for internal engines (not SAN)
+    public static class SimpleMove {
+        public final int fromFile, fromRank, toFile, toRank;
+        public SimpleMove(int fromFile, int fromRank, int toFile, int toRank) {
+            this.fromFile = fromFile; this.fromRank = fromRank; this.toFile = toFile; this.toRank = toRank;
+        }
+    }
+
     /**
      * Apply a very simple subset of SAN for either side on the current board state.
      * Supported:
@@ -258,5 +266,104 @@ public class ChessBoard {
         int df = Math.abs(toFile - fromFile);
         int dr = Math.abs(toRank - fromRank);
         return (df==1 && dr==2) || (df==2 && dr==1);
+    }
+
+    public boolean isWhite(char p) { return p >= 'A' && p <= 'Z'; }
+    public boolean isBlack(char p) { return p >= 'a' && p <= 'z'; }
+
+    // Generate simplified pseudo-legal moves: pawns (pushes and diagonal captures, no en-passant), knights (including captures).
+    // No check/termination rules considered.
+    public java.util.List<SimpleMove> generateSimpleMoves(boolean whiteToMove) {
+        java.util.ArrayList<SimpleMove> moves = new java.util.ArrayList<>();
+        if (whiteToMove) {
+            // White pawns
+            for (int f = 0; f < 8; f++) {
+                for (int r = 0; r < 8; r++) {
+                    char p = getAt(f, r);
+                    if (p == 'P') {
+                        int toR = r + 1;
+                        if (toR < 8 && getAt(f, toR) == ' ') {
+                            moves.add(new SimpleMove(f, r, f, toR));
+                            if (r == 1 && getAt(f, r + 2) == ' ') {
+                                moves.add(new SimpleMove(f, r, f, r + 2));
+                            }
+                        }
+                        // captures
+                        if (toR < 8) {
+                            if (f - 1 >= 0 && isBlack(getAt(f - 1, toR))) moves.add(new SimpleMove(f, r, f - 1, toR));
+                            if (f + 1 < 8 && isBlack(getAt(f + 1, toR))) moves.add(new SimpleMove(f, r, f + 1, toR));
+                        }
+                    } else if (p == 'N') {
+                        addKnightMoves(moves, f, r, true);
+                    }
+                }
+            }
+        } else {
+            // Black pawns
+            for (int f = 0; f < 8; f++) {
+                for (int r = 0; r < 8; r++) {
+                    char p = getAt(f, r);
+                    if (p == 'p') {
+                        int toR = r - 1;
+                        if (toR >= 0 && getAt(f, toR) == ' ') {
+                            moves.add(new SimpleMove(f, r, f, toR));
+                            if (r == 6 && getAt(f, r - 2) == ' ') {
+                                moves.add(new SimpleMove(f, r, f, r - 2));
+                            }
+                        }
+                        // captures
+                        if (toR >= 0) {
+                            if (f - 1 >= 0 && isWhite(getAt(f - 1, toR))) moves.add(new SimpleMove(f, r, f - 1, toR));
+                            if (f + 1 < 8 && isWhite(getAt(f + 1, toR))) moves.add(new SimpleMove(f, r, f + 1, toR));
+                        }
+                    } else if (p == 'n') {
+                        addKnightMoves(moves, f, r, false);
+                    }
+                }
+            }
+        }
+        return moves;
+    }
+
+    private void addKnightMoves(java.util.List<SimpleMove> moves, int f, int r, boolean white) {
+        int[][] d = new int[][]{{1,2},{2,1},{2,-1},{1,-2},{-1,-2},{-2,-1},{-2,1},{-1,2}};
+        for (int[] m: d) {
+            int tf = f + m[0];
+            int tr = r + m[1];
+            if (tf < 0 || tf >= 8 || tr < 0 || tr >= 8) continue;
+            char target = getAt(tf, tr);
+            if (target == ' ' || (white ? isBlack(target) : isWhite(target))) {
+                moves.add(new SimpleMove(f, r, tf, tr));
+            }
+        }
+    }
+
+    public ChessBoard apply(SimpleMove move) {
+        ChessBoard after = copy();
+        char piece = after.getAt(move.fromFile, move.fromRank);
+        after.setAt(move.fromFile, move.fromRank, ' ');
+        after.setAt(move.toFile, move.toRank, piece);
+        return after;
+    }
+
+    public int evaluateMaterial() {
+        int score = 0; // positive = White ahead
+        for (int r = 0; r < 8; r++) {
+            for (int f = 0; f < 8; f++) {
+                char p = getAt(f, r);
+                int v = 0;
+                switch (Character.toLowerCase(p)) {
+                    case 'p': v = 100; break;
+                    case 'n': v = 320; break;
+                    case 'b': v = 330; break;
+                    case 'r': v = 500; break;
+                    case 'q': v = 900; break;
+                    case 'k': v = 0; break;
+                    default: v = 0;
+                }
+                if (isWhite(p)) score += v; else if (isBlack(p)) score -= v;
+            }
+        }
+        return score;
     }
 }
