@@ -3,7 +3,7 @@ package org.example;
 /**
  * Renders the chessboard with ANSI colors and highlights from/to squares.
  * - Board squares use colored backgrounds: blue for dark squares, orange for light squares.
- * - Pieces are colored: green for white (uppercase), red for black (lowercase).
+ * - Pieces are colored: black for both sides (Unicode glyphs).
  * - Origin square highlighted with parentheses, e.g., (P) or ( ).
  * - Destination square highlighted with brackets, e.g., [P] or [ ].
  * Cells are 3 characters wide.
@@ -12,8 +12,7 @@ public class ChessBoardRenderer {
 
     // ANSI escape codes
     private static final String RESET = "\u001B[0m";
-    private static final String FG_RED = "\u001B[31m";
-    private static final String FG_GREEN = "\u001B[32m";
+    private static final String FG_BLACK = "\u001B[30m";
     private static final String BG_BLUE = "\u001B[44m";          // dark squares
     // Use 256-color "orange" if supported; many terminals will render it. Fallback to yellow if not supported.
     private static final String BG_ORANGE = "\u001B[48;5;208m";   // light squares (approx orange)
@@ -79,9 +78,8 @@ public class ChessBoardRenderer {
         if (piece == ' ') {
             return cell; // leave empty cells uncolored in foreground
         }
-        boolean white = Character.isUpperCase(piece);
-        String fg = white ? FG_GREEN : FG_RED;
-        return fg + cell + RESET;
+        // All pieces rendered in black foreground, regardless of side
+        return FG_BLACK + cell + RESET;
     }
 
     private static String formatHighlight(char piece, char open, char close) {

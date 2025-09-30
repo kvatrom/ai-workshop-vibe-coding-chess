@@ -9,22 +9,26 @@ import java.util.Scanner;
  */
 public class Main {
     public static void main(String[] args) {
-        // If moves are provided as args, treat them as a sequence starting from the initial position
+        // If a move is provided as an arg, accept exactly one move from the initial position
         if (args != null && args.length > 0) {
+            if (args.length != 1) {
+                System.out.println("Please provide exactly one move at a time (e.g., e4). Multiple moves are not allowed.");
+                return;
+            }
+            String move = args[0].trim();
+            if (move.isEmpty() || move.contains(" ")) {
+                System.out.println("Please provide exactly one move (no spaces), e.g., e4 or Nf6.");
+                return;
+            }
             ChessBoard board = ChessBoard.initial();
             boolean whiteToMove = true;
-            for (String move : args) {
-                String trimmed = move.trim();
-                if (trimmed.isEmpty()) continue;
-                System.out.println(ChessMoveDescriber.describe(trimmed));
-                ChessBoard.MoveResult res = board.tryApplySanSimple(trimmed, whiteToMove);
-                if (res.legal) {
-                    board = res.after;
-                    System.out.println(ChessBoardRenderer.render(board, res.fromFile, res.fromRank, res.toFile, res.toRank));
-                    whiteToMove = !whiteToMove;
-                } else {
-                    System.out.println("(No move made: unsupported or illegal under simplified rules. It is still " + (whiteToMove?"White":"Black") + " to move.)");
-                }
+            System.out.println(ChessMoveDescriber.describe(move));
+            ChessBoard.MoveResult res = board.tryApplySanSimple(move, whiteToMove);
+            if (res.legal) {
+                board = res.after;
+                System.out.println(ChessBoardRenderer.render(board, res.fromFile, res.fromRank, res.toFile, res.toRank));
+            } else {
+                System.out.println("(No move made: unsupported or illegal under simplified rules from the initial position.)");
             }
             return;
         }
