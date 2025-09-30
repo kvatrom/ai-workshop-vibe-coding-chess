@@ -123,7 +123,35 @@ public class ChessBoardGUI {
                 FontMetrics fm = g2.getFontMetrics();
                 g2.setColor(PIECE_FG);
 
+                // Draw coordinates (files and ranks) inside the board corners
+                float labelSize = Math.max(10f, cell * 0.18f);
+                Font labelFont = g2.getFont().deriveFont(Font.PLAIN, labelSize);
+                g2.setFont(labelFont);
+                FontMetrics lfm = g2.getFontMetrics();
+                // Files along bottom-left of each file on rank 1 squares
+                for (int f = 0; f < 8; f++) {
+                    int r = 0; // rank 1
+                    boolean dark = ((f + r) % 2 == 0);
+                    g2.setColor(dark ? Color.WHITE : Color.BLACK);
+                    String s = String.valueOf((char)('a' + f));
+                    int sx = x0 + f * cell + 4;
+                    int sy = y0 + (7 - r) * cell + (cell - 4);
+                    g2.drawString(s, sx, sy);
+                }
+                // Ranks along left side of each rank on file 'a' squares
+                for (int r = 0; r < 8; r++) {
+                    int f = 0; // file a
+                    boolean dark = ((f + r) % 2 == 0);
+                    g2.setColor(dark ? Color.WHITE : Color.BLACK);
+                    String s = String.valueOf(r + 1);
+                    int sx = x0 + 4;
+                    int sy = y0 + (7 - r) * cell + lfm.getAscent();
+                    g2.drawString(s, sx, sy);
+                }
+
                 // Draw pieces
+                g2.setFont(base);
+                fm = g2.getFontMetrics();
                 for (int r = 0; r < 8; r++) {
                     for (int f = 0; f < 8; f++) {
                         char p = board.getAt(f, r);

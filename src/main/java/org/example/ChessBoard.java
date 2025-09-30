@@ -40,14 +40,22 @@ public class ChessBoard {
             san = san.substring(0, san.length()-1);
         }
 
-        // Knights: N<square> (no capture supported)
+        // Knights: N<square> or Nx<square> (captures supported, no disambiguation)
         if (Character.toUpperCase(san.charAt(0)) == 'N') {
-            String dest = san.substring(1);
+            boolean wantsCapture = san.contains("x") || san.contains("X");
+            String dest = san.substring(1).replace("x", "").replace("X", "");
             if (!isValidSquare(dest)) return MoveResult.illegal();
             int toFile = fileIndex(dest.charAt(0));
             int toRank = rankIndex(dest.charAt(1));
-            if (getAt(toFile, toRank) != ' ') return MoveResult.illegal(); // no captures
+            char target = getAt(toFile, toRank);
             char knightChar = whiteToMove ? 'N' : 'n';
+            // Validate occupancy according to capture flag
+            if (wantsCapture) {
+                if (target == ' ') return MoveResult.illegal();
+                if (whiteToMove ? isWhite(target) : isBlack(target)) return MoveResult.illegal();
+            } else {
+                if (target != ' ') return MoveResult.illegal();
+            }
             int fromFile = -1, fromRank = -1, matches = 0;
             for (int r = 0; r < 8; r++) {
                 for (int f = 0; f < 8; f++) {
@@ -60,6 +68,26 @@ public class ChessBoard {
             ChessBoard after = copy();
             after.setAt(fromFile, fromRank, ' ');
             after.setAt(toFile, toRank, knightChar);
+            return MoveResult.legal(fromFile, fromRank, toFile, toRank, after);
+        }
+
+        // Pawn captures: exd5 style (no en-passant)
+        if (san.length() == 4 && Character.isLetter(san.charAt(0)) && (san.charAt(1)=='x' || san.charAt(1)=='X') && Character.isLetter(san.charAt(2)) && Character.isDigit(san.charAt(3))) {
+            int fromFile = fileIndex(san.charAt(0));
+            int toFile = fileIndex(san.charAt(2));
+            int toRank = rankIndex(san.charAt(3));
+            int dir = whiteToMove ? 1 : -1;
+            int fromRank = toRank - dir;
+            if (fromFile < 0 || fromFile > 7 || toFile < 0 || toFile > 7 || toRank < 0 || toRank > 7 || fromRank < 0 || fromRank > 7) return MoveResult.illegal();
+            if (Math.abs(toFile - fromFile) != 1) return MoveResult.illegal();
+            char pawnChar = whiteToMove ? 'P' : 'p';
+            if (getAt(fromFile, fromRank) != pawnChar) return MoveResult.illegal();
+            char target = getAt(toFile, toRank);
+            if (target == ' ') return MoveResult.illegal();
+            if (whiteToMove ? isWhite(target) : isBlack(target)) return MoveResult.illegal();
+            ChessBoard after = copy();
+            after.setAt(fromFile, fromRank, ' ');
+            after.setAt(toFile, toRank, pawnChar);
             return MoveResult.legal(fromFile, fromRank, toFile, toRank, after);
         }
 
