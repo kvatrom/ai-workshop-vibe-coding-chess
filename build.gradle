@@ -7,6 +7,16 @@ plugins {
 group = 'org.example'
 version = '1.0-SNAPSHOT'
 
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+}
+
 repositories {
     mavenCentral()
 }
@@ -55,6 +65,7 @@ tasks.withType(Checkstyle) {
 // Automatically commit repository changes after a successful build with an explanatory message
 // To disable, run with -PskipAutoCommit=true
 boolean skipAutoCommit = project.hasProperty('skipAutoCommit') && project.property('skipAutoCommit').toString().toBoolean()
+boolean skipAutoPush = project.hasProperty('skipAutoPush') && project.property('skipAutoPush').toString().toBoolean()
 
 tasks.register('commitOnSuccess') {
     onlyIf { !skipAutoCommit }
@@ -69,21 +80,74 @@ tasks.register('commitOnSuccess') {
         statusProc.waitFor()
         if (statusOut.trim().isEmpty()) {
             println '[auto-commit] No local changes to commit.'
-            return
-        }
-        // Stage all changes
-        def addProc = new ProcessBuilder('git', 'add', '-A').directory(rootDir).inheritIO().start()
-        addProc.waitFor()
-        // Derive a concise message listing changed files
-        def files = statusOut.readLines().collect { it.length() >= 4 ? it.substring(3).trim() : it }.join(', ')
-        def ts = new Date().format('yyyy-MM-dd HH:mm:ss')
-        def msg = "Auto-commit after successful build: ${ts}\nChanged files: ${files}"
-        def commitProc = new ProcessBuilder('git', '-c', 'user.name=Auto Commit Bot', '-c', 'user.email=autocommit@example.com', 'commit', '-m', msg).directory(rootDir).inheritIO().start()
-        commitProc.waitFor()
-        if (commitProc.exitValue() == 0) {
-            println '[auto-commit] Changes committed.'
+            // Even if no changes, we may still ensure branch naming/push of existing commits.
         } else {
-            println "[auto-commit] git commit failed with code ${commitProc.exitValue()}"
+            // Stage all changes
+            def addProc = new ProcessBuilder('git', 'add', '-A').directory(rootDir).inheritIO().start()
+            addProc.waitFor()
+            // Derive a concise message listing changed files
+            def files = statusOut.readLines().collect { it.length() >= 4 ? it.substring(3).trim() : it }.join(', ')
+            def ts = new Date().format('yyyy-MM-dd HH:mm:ss')
+            def msg = "Auto-commit after successful build: ${ts}\nChanged files: ${files}"
+            def commitProc = new ProcessBuilder('git', '-c', 'user.name=Auto Commit Bot', '-c', 'user.email=autocommit@example.com', 'commit', '-m', msg).directory(rootDir).inheritIO().start()
+            commitProc.waitFor()
+            if (commitProc.exitValue() == 0) {
+                println '[auto-commit] Changes committed.'
+            } else {
+                println "[auto-commit] git commit failed with code ${commitProc.exitValue()}"
+            }
+        }
+
+        // Ensure branch is 'main' instead of deprecated 'master'
+        def branchProc = new ProcessBuilder('git', 'rev-parse', '--abbrev-ref', 'HEAD').directory(rootDir).redirectErrorStream(true).start()
+        def branchName = new String(branchProc.inputStream.readAllBytes()).trim()
+        branchProc.waitFor()
+        if (branchName == 'master') {
+            println '[auto-commit] Renaming branch master -> main'
+            def renameProc = new ProcessBuilder('git', 'branch', '-m', 'master', 'main').directory(rootDir).inheritIO().start()
+            renameProc.waitFor()
+            // Update branchName variable after rename
+            branchName = 'main'
+        }
+        if (branchName == 'HEAD' || branchName.isEmpty()) {
+            // Detached; try to switch/create main if available
+            def checkoutMain = new ProcessBuilder('git', 'checkout', '-B', 'main').directory(rootDir).inheritIO().start()
+            checkoutMain.waitFor()
+            branchName = 'main'
+        }
+
+        // Optionally push to origin
+        if (!skipAutoPush) {
+            // Check if remote 'origin' exists
+            def remoteProc = new ProcessBuilder('git', 'remote').directory(rootDir).redirectErrorStream(true).start()
+            def remotes = new String(remoteProc.inputStream.readAllBytes()).trim().split('\n') as List<String>
+            remoteProc.waitFor()
+            if (!remotes.contains('origin')) {
+                println "[auto-commit] Remote 'origin' not configured; skipping push."
+            } else {
+                // Ensure upstream is set and push
+                def pushArgs = ['git', 'push']
+                // If pushing new main branch or no upstream, set -u
+                def upstreamProc = new ProcessBuilder('git', 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}').directory(rootDir).redirectErrorStream(true).start()
+                upstreamProc.waitFor()
+                boolean hasUpstream = upstreamProc.exitValue() == 0
+                if (!hasUpstream) {
+                    pushArgs += ['-u', 'origin', branchName]
+                }
+                def pushProc = new ProcessBuilder(pushArgs as String[]).directory(rootDir).inheritIO().start()
+                pushProc.waitFor()
+                if (pushProc.exitValue() == 0) {
+                    println "[auto-commit] Pushed branch '${branchName}' to origin."
+                    // Try to set remote HEAD to main when applicable
+                    if (branchName == 'main') {
+                        new ProcessBuilder('git', 'remote', 'set-head', 'origin', 'main').directory(rootDir).inheritIO().start().waitFor()
+                    }
+                } else {
+                    println "[auto-commit] git push failed with code ${pushProc.exitValue()}"
+                }
+            }
+        } else {
+            println '[auto-commit] Auto-push disabled via -PskipAutoPush=true.'
         }
     }
 }
