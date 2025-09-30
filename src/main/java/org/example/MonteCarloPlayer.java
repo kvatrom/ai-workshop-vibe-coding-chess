@@ -122,12 +122,5 @@ public class MonteCarloPlayer {
         return rootWhite ? eval : -eval;
     }
 
-    public static class MoveChoice {
-        public final ChessBoard.SimpleMove move;
-        public final ChessBoard resultingState;
-        public MoveChoice(ChessBoard.SimpleMove move, ChessBoard resultingState) {
-            this.move = move;
-            this.resultingState = resultingState;
-        }
-    }
+    public static record MoveChoice(ChessBoard.SimpleMove move, ChessBoard resultingState) {}
 }

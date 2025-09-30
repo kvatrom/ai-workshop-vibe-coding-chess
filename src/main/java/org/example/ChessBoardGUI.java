@@ -15,23 +15,31 @@ public class ChessBoardGUI {
     private final BoardPanel panel;
 
     public static ChessBoardGUI launch() {
+        if (GraphicsEnvironment.isHeadless()) {
+            return new ChessBoardGUI(true);
+        }
         // Initialize on EDT
         final ChessBoardGUI[] holder = new ChessBoardGUI[1];
         try {
             if (!SwingUtilities.isEventDispatchThread()) {
-                SwingUtilities.invokeAndWait(() -> holder[0] = new ChessBoardGUI());
+                SwingUtilities.invokeAndWait(() -> holder[0] = new ChessBoardGUI(false));
             } else {
-                holder[0] = new ChessBoardGUI();
+                holder[0] = new ChessBoardGUI(false);
             }
         } catch (Exception e) {
             e.printStackTrace();
             // Fallback: create directly
-            holder[0] = new ChessBoardGUI();
+            holder[0] = new ChessBoardGUI(false);
         }
         return holder[0];
     }
 
-    private ChessBoardGUI() {
+    private ChessBoardGUI(boolean headless) {
+        if (headless) {
+            frame = null;
+            panel = null;
+            return;
+        }
         frame = new JFrame("Chess (GUI)");
         frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         panel = new BoardPanel();
@@ -48,6 +56,7 @@ public class ChessBoardGUI {
     }
 
     public void update(ChessBoard board, int fromFile, int fromRank, int toFile, int toRank) {
+        if (panel == null) return; // headless no-op
         SwingUtilities.invokeLater(() -> {
             panel.setState(board, fromFile, fromRank, toFile, toRank);
             panel.repaint();
@@ -55,6 +64,7 @@ public class ChessBoardGUI {
     }
 
     public void update(ChessBoard board) {
+        if (panel == null) return; // headless no-op
         update(board, -1, -1, -1, -1);
     }
 

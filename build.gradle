@@ -18,3 +18,46 @@ dependencies {
 test {
     useJUnitPlatform()
 }
+
+// Automatically commit repository changes after a successful build with an explanatory message
+// To disable, run with -PskipAutoCommit=true
+boolean skipAutoCommit = project.hasProperty('skipAutoCommit') && project.property('skipAutoCommit').toString().toBoolean()
+
+tasks.register('commitOnSuccess') {
+    onlyIf { !skipAutoCommit }
+    doLast {
+        File gitDir = new File(rootDir, '.git')
+        if (!gitDir.exists()) {
+            println '[auto-commit] Not a Git repository; skipping.'
+            return
+        }
+        def statusProc = new ProcessBuilder('git', 'status', '--porcelain').directory(rootDir).redirectErrorStream(true).start()
+        def statusOut = new String(statusProc.inputStream.readAllBytes())
+        statusProc.waitFor()
+        if (statusOut.trim().isEmpty()) {
+            println '[auto-commit] No local changes to commit.'
+            return
+        }
+        // Stage all changes
+        def addProc = new ProcessBuilder('git', 'add', '-A').directory(rootDir).inheritIO().start()
+        addProc.waitFor()
+        // Derive a concise message listing changed files
+        def files = statusOut.readLines().collect { it.length() >= 4 ? it.substring(3).trim() : it }.join(', ')
+        def ts = new Date().format('yyyy-MM-dd HH:mm:ss')
+        def msg = "Auto-commit after successful build: ${ts}\nChanged files: ${files}"
+        def commitProc = new ProcessBuilder('git', '-c', 'user.name=Auto Commit Bot', '-c', 'user.email=autocommit@example.com', 'commit', '-m', msg).directory(rootDir).inheritIO().start()
+        commitProc.waitFor()
+        if (commitProc.exitValue() == 0) {
+            println '[auto-commit] Changes committed.'
+        } else {
+            println "[auto-commit] git commit failed with code ${commitProc.exitValue()}"
+        }
+    }
+}
+
+// Run auto-commit after any successful build
+build.finalizedBy(tasks.named('commitOnSuccess'))
+
+// Also run auto-commit after `check` and when `test` is invoked directly (not only after `build`)
+tasks.named('check').configure { finalizedBy tasks.named('commitOnSuccess') }
+tasks.named('test').configure { finalizedBy tasks.named('commitOnSuccess') }

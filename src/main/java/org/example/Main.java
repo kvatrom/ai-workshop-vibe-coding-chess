@@ -32,10 +32,10 @@ public class Main {
             boolean whiteToMove = true;
             System.out.println(ChessMoveDescriber.describe(move));
             ChessBoard.MoveResult res = board.tryApplySanSimple(move, whiteToMove);
-            if (res.legal) {
-                board = res.after;
-                System.out.println(ChessBoardRenderer.render(board, res.fromFile, res.fromRank, res.toFile, res.toRank));
-                gui.update(board, res.fromFile, res.fromRank, res.toFile, res.toRank);
+            if (res.legal()) {
+                board = res.after();
+                System.out.println(ChessBoardRenderer.render(board, res.fromFile(), res.fromRank(), res.toFile(), res.toRank()));
+                gui.update(board, res.fromFile(), res.fromRank(), res.toFile(), res.toRank());
             } else {
                 System.out.println("(No move made: unsupported or illegal under simplified rules from the initial position.)");
             }
@@ -54,21 +54,21 @@ public class Main {
             if (line.isEmpty()) break;
             System.out.println(ChessMoveDescriber.describe(line));
             ChessBoard.MoveResult res = board.tryApplySanSimple(line, whiteToMove);
-            if (res.legal) {
-                board = res.after;
-                System.out.println(ChessBoardRenderer.render(board, res.fromFile, res.fromRank, res.toFile, res.toRank));
-                gui.update(board, res.fromFile, res.fromRank, res.toFile, res.toRank);
+            if (res.legal()) {
+                board = res.after();
+                System.out.println(ChessBoardRenderer.render(board, res.fromFile(), res.fromRank(), res.toFile(), res.toRank()));
+                gui.update(board, res.fromFile(), res.fromRank(), res.toFile(), res.toRank());
                 whiteToMove = !whiteToMove;
                 // If it's now Black to move, let Black play using MCTS under simplified rules
                 if (!whiteToMove) {
                     java.util.Optional<MonteCarloPlayer.MoveChoice> choice = MonteCarloPlayer.chooseMove(board, false, 300);
                     if (choice.isPresent()) {
                         MonteCarloPlayer.MoveChoice mc = choice.get();
-                        ChessBoard.SimpleMove mv = mc.move;
-                        board = mc.resultingState;
-                        System.out.println("Black (MCTS) plays: " + coord(mv.fromFile, mv.fromRank) + "-" + coord(mv.toFile, mv.toRank));
-                        System.out.println(ChessBoardRenderer.render(board, mv.fromFile, mv.fromRank, mv.toFile, mv.toRank));
-                        gui.update(board, mv.fromFile, mv.fromRank, mv.toFile, mv.toRank);
+                        ChessBoard.SimpleMove mv = mc.move();
+                        board = mc.resultingState();
+                        System.out.println("Black (MCTS) plays: " + coord(mv.fromFile(), mv.fromRank()) + "-" + coord(mv.toFile(), mv.toRank()));
+                        System.out.println(ChessBoardRenderer.render(board, mv.fromFile(), mv.fromRank(), mv.toFile(), mv.toRank()));
+                        gui.update(board, mv.fromFile(), mv.fromRank(), mv.toFile(), mv.toRank());
                     } else {
                         System.out.println("Black (MCTS) has no legal simplified moves. Waiting for White's next input.");
                     }

@@ -15,12 +15,7 @@ public class ChessBoard {
     private final char[][] board = new char[8][8];
 
     // Simple move model for internal engines (not SAN)
-    public static class SimpleMove {
-        public final int fromFile, fromRank, toFile, toRank;
-        public SimpleMove(int fromFile, int fromRank, int toFile, int toRank) {
-            this.fromFile = fromFile; this.fromRank = fromRank; this.toFile = toFile; this.toRank = toRank;
-        }
-    }
+    public static record SimpleMove(int fromFile, int fromRank, int toFile, int toRank) {}
 
     /**
      * Apply a very simple subset of SAN for either side on the current board state.
@@ -128,27 +123,10 @@ public class ChessBoard {
         return MoveResult.illegal();
     }
 
-    public static class MoveResult {
-        public final boolean legal;
-        public final int fromFile; // 0..7 (a..h)
-        public final int fromRank; // 0..7 (1..8)
-        public final int toFile;   // 0..7
-        public final int toRank;   // 0..7
-        public final ChessBoard after;
-
-        private MoveResult(boolean legal, int fromFile, int fromRank, int toFile, int toRank, ChessBoard after) {
-            this.legal = legal;
-            this.fromFile = fromFile;
-            this.fromRank = fromRank;
-            this.toFile = toFile;
-            this.toRank = toRank;
-            this.after = after;
-        }
-
+    public static record MoveResult(boolean legal, int fromFile, int fromRank, int toFile, int toRank, ChessBoard after) {
         public static MoveResult illegal() {
             return new MoveResult(false, -1, -1, -1, -1, null);
         }
-
         public static MoveResult legal(int fromFile, int fromRank, int toFile, int toRank, ChessBoard after) {
             return new MoveResult(true, fromFile, fromRank, toFile, toRank, after);
         }
@@ -368,30 +346,30 @@ public class ChessBoard {
 
     public ChessBoard apply(SimpleMove move) {
         ChessBoard after = copy();
-        char piece = after.getAt(move.fromFile, move.fromRank);
-        after.setAt(move.fromFile, move.fromRank, ' ');
-        after.setAt(move.toFile, move.toRank, piece);
+        char piece = after.getAt(move.fromFile(), move.fromRank());
+        after.setAt(move.fromFile(), move.fromRank(), ' ');
+        after.setAt(move.toFile(), move.toRank(), piece);
         return after;
     }
 
     public int evaluateMaterial() {
-        int score = 0; // positive = White ahead
-        for (int r = 0; r < 8; r++) {
-            for (int f = 0; f < 8; f++) {
-                char p = getAt(f, r);
-                int v = 0;
-                switch (Character.toLowerCase(p)) {
-                    case 'p': v = 100; break;
-                    case 'n': v = 320; break;
-                    case 'b': v = 330; break;
-                    case 'r': v = 500; break;
-                    case 'q': v = 900; break;
-                    case 'k': v = 0; break;
-                    default: v = 0;
-                }
-                if (isWhite(p)) score += v; else if (isBlack(p)) score -= v;
-            }
-        }
-        return score;
+        // functional-style summation via streams
+        return java.util.stream.IntStream.range(0, 8)
+                .map(r -> java.util.stream.IntStream.range(0, 8)
+                        .map(f -> {
+                            char p = getAt(f, r);
+                            int v;
+                            switch (Character.toLowerCase(p)) {
+                                case 'p': v = 100; break;
+                                case 'n': v = 320; break;
+                                case 'b': v = 330; break;
+                                case 'r': v = 500; break;
+                                case 'q': v = 900; break;
+                                case 'k': v = 0; break;
+                                default: v = 0;
+                            }
+                            if (isWhite(p)) return v; else if (isBlack(p)) return -v; else return 0;
+                        }).sum())
+                .sum();
     }
 }
