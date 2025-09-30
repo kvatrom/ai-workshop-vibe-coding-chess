@@ -14,6 +14,8 @@ public class Main {
         return "" + f + r;
     }
     public static void main(String[] args) {
+        // Launch GUI board (fits roughly half the screen) while still using CLI for moves
+        ChessBoardGUI gui = ChessBoardGUI.launch();
         // If a move is provided as an arg, accept exactly one move from the initial position
         if (args != null && args.length > 0) {
             if (args.length != 1) {
@@ -26,12 +28,14 @@ public class Main {
                 return;
             }
             ChessBoard board = ChessBoard.initial();
+            gui.update(board);
             boolean whiteToMove = true;
             System.out.println(ChessMoveDescriber.describe(move));
             ChessBoard.MoveResult res = board.tryApplySanSimple(move, whiteToMove);
             if (res.legal) {
                 board = res.after;
                 System.out.println(ChessBoardRenderer.render(board, res.fromFile, res.fromRank, res.toFile, res.toRank));
+                gui.update(board, res.fromFile, res.fromRank, res.toFile, res.toRank);
             } else {
                 System.out.println("(No move made: unsupported or illegal under simplified rules from the initial position.)");
             }
@@ -40,6 +44,7 @@ public class Main {
         // Interactive mode with persistent board and alternating turns
         Scanner scanner = new Scanner(System.in);
         ChessBoard board = ChessBoard.initial();
+        gui.update(board);
         boolean whiteToMove = true;
         System.out.println("Enter SAN moves (e.g., d4, Nf6). After each legal move the board updates and turns alternate. Ctrl+D (Unix) or Ctrl+Z (Windows) to exit.");
         while (true) {
@@ -52,6 +57,7 @@ public class Main {
             if (res.legal) {
                 board = res.after;
                 System.out.println(ChessBoardRenderer.render(board, res.fromFile, res.fromRank, res.toFile, res.toRank));
+                gui.update(board, res.fromFile, res.fromRank, res.toFile, res.toRank);
                 whiteToMove = !whiteToMove;
                 // If it's now Black to move, let Black play using MCTS under simplified rules
                 if (!whiteToMove) {
@@ -62,6 +68,7 @@ public class Main {
                         board = mc.resultingState;
                         System.out.println("Black (MCTS) plays: " + coord(mv.fromFile, mv.fromRank) + "-" + coord(mv.toFile, mv.toRank));
                         System.out.println(ChessBoardRenderer.render(board, mv.fromFile, mv.fromRank, mv.toFile, mv.toRank));
+                        gui.update(board, mv.fromFile, mv.fromRank, mv.toFile, mv.toRank);
                     } else {
                         System.out.println("Black (MCTS) has no legal simplified moves. Waiting for White's next input.");
                     }
